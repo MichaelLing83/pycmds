@@ -7,12 +7,18 @@ from collections import defaultdict
 from collections.abc import Callable
 import os
 from pathlib import Path
-from typing import Dict, Generator, Set, Tuple
+from typing import Dict, Generator, Set, Tuple, Type
 
 from loguru import logger
 import magic
+from pptx import Presentation
+import pptx
+import pptx.shapes
+import pptx.shapes.autoshape
+import pptx.shapes.base
 
 CODEC_BINARY: str = "binary"
+
 
 class FileTypeCodec(object):
     """A class to handle file type encoding and decoding."""
@@ -42,7 +48,7 @@ class FileTypeCodec(object):
         cls.codec_stat[_codec] += 1
         cls.history[fpath] = (_type, _codec)
         return _type, _codec
-    
+
     @classmethod
     def is_binary(cls, fpath: Path) -> bool | None:
         """Check if the file is binary."""
@@ -53,7 +59,7 @@ class FileTypeCodec(object):
         if _codec == CODEC_BINARY:
             return True
         return False
-    
+
     @classmethod
     def is_text(cls, fpath: Path) -> bool | None:
         """Check if the file is text."""
@@ -61,7 +67,7 @@ class FileTypeCodec(object):
         if _is_binary is None:
             return None
         return not _is_binary
-    
+
     @classmethod
     def get_codec(cls, fpath: Path) -> str | None:
         """Get the codec of the file."""
@@ -70,7 +76,7 @@ class FileTypeCodec(object):
             return None
         _, _codec = _type_codec
         return _codec
-    
+
     @classmethod
     def get_type(cls, fpath: Path) -> str | None:
         """Get the type of the file."""
@@ -79,53 +85,111 @@ class FileTypeCodec(object):
             return None
         _type, _ = _type_codec
         return _type
-    
+
     @classmethod
     def reset_stats(cls) -> None:
         """Reset the statistics."""
         cls.type_codec_stat.clear()
         cls.type_stat.clear()
         cls.codec_stat.clear()
-    
+
     @classmethod
     def reset_history(cls) -> None:
         """Reset the history."""
         cls.history.clear()
 
-def _read_text_file(fpath: Path) -> Generator[str, None, None]:
-    """Read a text file line by line."""
-    if not fpath.exists():
-        raise FileNotFoundError(f"File {fpath} does not exist.")
-    _encoding: str | None = FileTypeCodec.get_codec(fpath)
-    if _encoding is None:
-        raise ValueError(f"Cannot determine encoding for {fpath}.")
-    with open(fpath, "r", encoding=_encoding) as _f:
-        for _line in _f:
-            yield _line
+
 
 class FileReader(object):
-    """A class to read files and determine their types and codecs."""
-    text_file_reader: Callable[[Path], Generator[str, None, None]] = _read_text_file
-    binary_file_reader: Dict[str, Callable[[Path], Generator[bytes, None, None]]] = dict()
+    def __init__(self) -> None:
+        raise NotImplementedError("This class should not be instantiated directly.")
+
+    @classmethod
+    def can_read(cls, fpath: Path) -> bool:
+        """Check if the file can be read."""
+        raise NotImplementedError("This method should be implemented by subclasses.")
+
+    @classmethod
+    def read(cls, fpath: Path) -> Generator[str, None, None]:
+        """Read the file."""
+        raise NotImplementedError("This method should be implemented by subclasses.")
+    
+    @classmethod
+    def get_reader(cls, fpath: Path) -> Type[FileReader] | None:
+        if not fpath.exists():
+            return None
+        for _cls in cls.__subclasses__():
+            if _cls.can_read(fpath):
+                return _cls
+        return None
 
 
+class TextFileReader(FileReader):
+    """A class to read text files."""
+
+    @classmethod
+    def can_read(cls, fpath: Path) -> bool:
+        _ok: bool | None = FileTypeCodec.is_text(fpath)
+        if _ok is None:
+            return False
+        return _ok
+
+    @classmethod
+    def read(cls, fpath: Path) -> Generator[str, None, None]:
+        """Read a text file line by line."""
+        if not fpath.exists():
+            raise FileNotFoundError(f"File {fpath} does not exist.")
+        _encoding: str | None = FileTypeCodec.get_codec(fpath)
+        if _encoding is None:
+            raise ValueError(f"Cannot determine encoding for {fpath}.")
+        with open(fpath, "r", encoding=_encoding) as _f:
+            for _line in _f:
+                yield _line
+
+class PptxFileReader(FileReader):
+    """A class to read PowerPoint files."""
+    
+
+    @classmethod
+    def can_read(cls, fpath: Path) -> bool:
+        _type: str | None = FileTypeCodec.get_type(fpath)
+        if _type is None:
+            return False
+        return _type == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+    @classmethod
+    def read(cls, fpath: Path) -> Generator[str, None, None]:
+        """Read a PowerPoint file."""
+        _presentation = Presentation(str(fpath))
+        # text_runs will be populated with a list of strings,
+        # one for each text run in presentation
+        for slide in _presentation.slides:
+            for shape in slide.shapes:
+                if isinstance(shape, pptx.shapes.autoshape.Shape) and shape.has_text_frame:
+                    for paragraph in shape.text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            yield run.text
 
 if __name__ == "__main__":
     import argparse
-    _arg_parser = argparse.ArgumentParser(description="Get file type and codec from a file.")
-    _arg_parser.add_argument("root", type=Path, help="Root dir to search files to test.")
+
+    _arg_parser = argparse.ArgumentParser(
+        description="Get file type and codec from a file."
+    )
+    _arg_parser.add_argument(
+        "root", type=Path, help="Root dir to search files to test."
+    )
     args = _arg_parser.parse_args()
     try:
         for _dir_str, _, _fnames in os.walk(args.root):
             _dir: Path = Path(_dir_str)
             for _fname in _fnames:
                 _fpath: Path = _dir / _fname
-                if not _fpath.exists():
+                _reader: Type[FileReader] | None = FileReader.get_reader(_fpath)
+                if _reader is None:
                     continue
-                try:
-                    FileTypeCodec.magic_from_file(_fpath)
-                except Exception as e:
-                    logger.error(f"Error processing file {_fpath}: {e}")
+                else:
+                    logger.debug("Found reader for {}: {}", _fpath, _reader.__name__)
         logger.info("Type codec stat: {}", FileTypeCodec.type_codec_stat)
         logger.info("Type stat: {}", FileTypeCodec.type_stat)
         logger.info("Codec stat: {}", FileTypeCodec.codec_stat)
