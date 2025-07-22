@@ -7,14 +7,10 @@ import multiprocessing
 import os
 from pathlib import Path
 import re
-import subprocess
 import sys
-from typing import Dict, Generator, Iterable, List, Set, TextIO, Tuple
+from typing import Generator, Iterable, List, TextIO, Tuple
 from loguru import logger
 
-import builtins
-
-import magic
 
 sys.path.insert(0, str(Path(__file__).parent))
 from FileTypeE import FileTypeE
@@ -188,21 +184,28 @@ class PyGrep(object):
         _cpu_count: int | None = os.cpu_count()
         if self.sequential_processing or _cpu_count is None:
             if self.debug_info:
-                logger.warning(f"{self.search_files.__name__}: Process sequentially, with cpu_count={_cpu_count}")
+                logger.warning(
+                    f"{self.search_files.__name__}: Process sequentially, with cpu_count={_cpu_count}"
+                )
             for _fpath in self._generate_files(self.files):
                 if self.search_file(_fpath):
                     print(_fpath, file=sys.stdout)
         else:
             _num_processes: int = max((_cpu_count // 2, 1))
             if self.debug_info:
-                logger.debug(f"{self.search_files.__name__}: parallel handling with {_num_processes} processes.")
+                logger.debug(
+                    f"{self.search_files.__name__}: parallel handling with {_num_processes} processes."
+                )
             with multiprocessing.Pool(processes=_num_processes) as _pool:
                 # _pool.imap_unordered(self.search_file, self._generate_files(self.files), chunksize=_num_processes)
                 # _pool.map(self.search_file, self._generate_files(self.files))
-                for _fpath, _has_match in _pool.imap_unordered(self.search_file, self._generate_files(self.files), chunksize=_num_processes):
+                for _fpath, _has_match in _pool.imap_unordered(
+                    self.search_file,
+                    self._generate_files(self.files),
+                    chunksize=_num_processes,
+                ):
                     if _has_match:
                         print(_fpath, file=sys.stdout)
-        
 
 
 if __name__ == "__main__":
@@ -213,28 +216,28 @@ if __name__ == "__main__":
         "-e",
         "--python-regexp",
         type=str,
-        action='append',
+        action="append",
         help="Interpret PATTERNS as extended pythong regular expressions.",
     )
     _regex_group.add_argument(
         "-f",
         "--fixed-string",
         type=str,
-        action='append',
+        action="append",
         help="Interpret PATTERNS as fixed strings, not regular expressions.",
     )
     _regex_group.add_argument(
         "-fr",
         "--file-regex",
         type=Path,
-        action='append',
+        action="append",
         help="Obtain  patterns  from  FILE,  one per line.",
     )
     _regex_group.add_argument(
         "-ff",
         "--file-fixed-string",
         type=Path,
-        action='append',
+        action="append",
         help="Obtain  fixed string patterns  from  FILE,  one per line.",
     )
 
@@ -322,7 +325,9 @@ if __name__ == "__main__":
         "--debug-info", action="store_true", help="Enable debug logs."
     )
     _arg_parser.add_argument(
-        "--sequential-processing", action="store_true", help="Force sequential processing of files."
+        "--sequential-processing",
+        action="store_true",
+        help="Force sequential processing of files.",
     )
 
     _args = _arg_parser.parse_args()
@@ -336,14 +341,22 @@ if __name__ == "__main__":
     if _args.debug_info:
         logger.debug(f"_args: {_args}")
     _py_grep: PyGrep = PyGrep(
-        regex_patterns=_args.python_regexp if _args.python_regexp is not None else list(),
-        fixed_string_patterns=_args.fixed_string if _args.fixed_string is not None else list(),
-        fpaths_with_patterns=_args.file_regex if _args.file_regex is not None else list(),
-        fpaths_with_fixed_strings=_args.file_fixed_string if _args.file_fixed_string is not None else list(),
+        regex_patterns=_args.python_regexp
+        if _args.python_regexp is not None
+        else list(),
+        fixed_string_patterns=_args.fixed_string
+        if _args.fixed_string is not None
+        else list(),
+        fpaths_with_patterns=_args.file_regex
+        if _args.file_regex is not None
+        else list(),
+        fpaths_with_fixed_strings=_args.file_fixed_string
+        if _args.file_fixed_string is not None
+        else list(),
         no_message=_args.no_message,
         quit_on_error=_args.quit_on_error,
         files=_files,
         debug_info=_args.debug_info,
-        sequential_processing=_args.sequential_processing
+        sequential_processing=_args.sequential_processing,
     )
     _py_grep.search_files()

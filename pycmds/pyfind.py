@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 import argparse
-from enum import Enum
 import os
 from pathlib import Path
 import re
 import subprocess
 import sys
-from typing import Dict, Generator, Iterable, List, Set
+from typing import Generator, Iterable, List, Set
 from loguru import logger
 
 import builtins
@@ -53,9 +52,6 @@ def _fstr_eval(_s: str, raw_string=False, eval=builtins.eval) -> str:
 
     _prefix = "rf" if raw_string else "f"
     return eval(_prefix + _TA + _s + _TA) + _ra
-
-
-
 
 
 class PyFinder(object):

@@ -62,7 +62,7 @@ class FileTypeE(Enum):
             _msg: str = f"Cannot decide type of {p}"
             logger.error(_msg)
             raise ValueError(_msg)
-    
+
     @staticmethod
     def is_text_file(p: Path) -> bool:
         _mime_ftype: str = magic.from_file(p, mime=True)
@@ -70,7 +70,7 @@ class FileTypeE(Enum):
             return True
         else:
             return False
-    
+
     @staticmethod
     def mime_type(p: Path) -> str:
         return magic.from_file(p, mime=True)
