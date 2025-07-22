@@ -11,4 +11,6 @@ uv venv --python  ">=3.10,<=3.12"
 .venv\Scripts\activate
 uv sync
 
+$env:Path += ";$SCRIPT_DIR\pycmds"
+
 Set-Location $RUN_DIR

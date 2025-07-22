@@ -8,4 +8,6 @@ uv venv --python ">=3.10,<=3.12"
 source .venv/bin/activate
 uv sync
 
+PATH="$SCRIPT_DIR/pycmds:$PATH"
+
 cd $RUN_DIR || exit 1
