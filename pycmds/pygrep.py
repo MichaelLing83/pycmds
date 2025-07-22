@@ -135,7 +135,7 @@ class PyGrep(object):
                 if self.quit_on_error:
                     raise ValueError(_msg)
 
-    def search_line(self, line: str) -> bool:
+    def search_line(self, fpath: Path| TextIO, line_num: int, line: str) -> bool:
         for _regex in self.regex_patterns:
             if _regex.search(line) is not None:
                 return True
@@ -157,8 +157,8 @@ class PyGrep(object):
                         logger.warning(_msg)
                     return (fpath, False)
                 with open(fpath, "r") as _f:
-                    for _line in _f:
-                        if self.search_line(_line):
+                    for _line_num, _line in enumerate(_f):
+                        if self.search_line(fpath, _line_num, _line):
                             return (fpath, True)
                 return (fpath, False)
             except Exception as _e:
@@ -168,8 +168,8 @@ class PyGrep(object):
                 if self.quit_on_error:
                     raise RuntimeError(_msg)
         elif isinstance(fpath, TextIO):
-            for _line in fpath:
-                if self.search_line(_line):
+            for _line_num, _line in enumerate(fpath):
+                if self.search_line(fpath, _line_num, _line):
                     return (fpath, True)
                 return (fpath, False)
         else:
