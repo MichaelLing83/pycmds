@@ -149,7 +149,6 @@ class TextFileReader(FileReader):
 class PptxFileReader(FileReader):
     """A class to read PowerPoint files."""
     
-
     @classmethod
     def can_read(cls, fpath: Path) -> bool:
         _type: str | None = FileTypeCodec.get_type(fpath)
@@ -181,6 +180,9 @@ if __name__ == "__main__":
     )
     args = _arg_parser.parse_args()
     try:
+        if not args.root.exists():
+            logger.error("{} does not exist.", args.root)
+            exit(1)
         for _dir_str, _, _fnames in os.walk(args.root):
             _dir: Path = Path(_dir_str)
             for _fname in _fnames:
