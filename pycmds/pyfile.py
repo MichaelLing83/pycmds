@@ -4,18 +4,18 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-import re
-import subprocess
 import sys
-from typing import Generator, Iterable, List, Set, Tuple
+from typing import Tuple
 from loguru import logger
 
-import builtins
 
 sys.path.insert(0, str(Path(__file__).parent))
 from FileReader import FileTypeCodec
 
-def guess_file_type_and_codec(target: Path, print_type: bool, print_codec: bool, print_path: bool) -> None:
+
+def guess_file_type_and_codec(
+    target: Path, print_type: bool, print_codec: bool, print_path: bool
+) -> None:
     _type_codec: Tuple[str, str] | None = FileTypeCodec.magic_from_file(target)
     if _type_codec is None:
         logger.error(f"Cannot decide type and codec of file: {target}")
@@ -27,7 +27,6 @@ def guess_file_type_and_codec(target: Path, print_type: bool, print_codec: bool,
         print(f"{str(target) + ': ' if print_path else ''}{_type}")
     elif print_codec:
         print(f"{str(target) + ': ' if print_path else ''}{_codec}")
-
 
 
 if __name__ == "__main__":
@@ -42,14 +41,14 @@ if __name__ == "__main__":
         "--type",
         "-type",
         "-t",
-        action='store_true',
+        action="store_true",
         help="Print type of file.",
     )
     _arg_parser.add_argument(
         "--codec",
         "-codec",
         "-c",
-        action='store_true',
+        action="store_true",
         help="Print codec of file.",
     )
     _arg_parser.add_argument(
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     _arg_parser.add_argument(
         "--path",
         "-p",
-        action='store_true',
+        action="store_true",
         help="Print path of file.",
     )
 
@@ -83,15 +82,25 @@ if __name__ == "__main__":
                 guess_file_type_and_codec(_target, _args.type, _args.codec, _args.path)
             elif _target.is_dir():
                 for _dir_str, _, _fnames in os.walk(_target):
-                    if _args.maxdepth >= 0 and len(Path(_dir_str).relative_to(_target).parts) > _args.maxdepth:
+                    if (
+                        _args.maxdepth >= 0
+                        and len(Path(_dir_str).relative_to(_target).parts)
+                        > _args.maxdepth
+                    ):
                         continue
                     for _fname in _fnames:
                         _fpath: Path = Path(_dir_str) / _fname
                         if not _fpath.exists():
                             continue
-                        if _args.mindepth >= 0 and len(Path(_fpath).relative_to(_target).parts) < _args.mindepth:
+                        if (
+                            _args.mindepth >= 0
+                            and len(Path(_fpath).relative_to(_target).parts)
+                            < _args.mindepth
+                        ):
                             continue
-                        guess_file_type_and_codec(_fpath, _args.type, _args.codec, _args.path)
+                        guess_file_type_and_codec(
+                            _fpath, _args.type, _args.codec, _args.path
+                        )
     except KeyboardInterrupt:
         sys.exit(1)
     except ValueError:

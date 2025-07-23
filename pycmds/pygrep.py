@@ -135,7 +135,7 @@ class PyGrep(object):
                 if self.quit_on_error:
                     raise ValueError(_msg)
 
-    def search_line(self, fpath: Path| TextIO, line_num: int, line: str) -> bool:
+    def search_line(self, fpath: Path | TextIO, line_num: int, line: str) -> bool:
         for _regex in self.regex_patterns:
             if _regex.search(line) is not None:
                 return True

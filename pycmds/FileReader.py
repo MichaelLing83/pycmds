@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
 import os
 from pathlib import Path
-from typing import Dict, Generator, Set, Tuple, Type
+from typing import Dict, Generator, Tuple, Type
 
 from loguru import logger
 import magic
@@ -99,7 +98,6 @@ class FileTypeCodec(object):
         cls.history.clear()
 
 
-
 class FileReader(object):
     def __init__(self) -> None:
         raise NotImplementedError("This class should not be instantiated directly.")
@@ -113,7 +111,7 @@ class FileReader(object):
     def read(cls, fpath: Path) -> Generator[str, None, None]:
         """Read the file."""
         raise NotImplementedError("This method should be implemented by subclasses.")
-    
+
     @classmethod
     def get_reader(cls, fpath: Path) -> Type[FileReader] | None:
         if not fpath.exists():
@@ -146,15 +144,19 @@ class TextFileReader(FileReader):
             for _line in _f:
                 yield _line
 
+
 class PptxFileReader(FileReader):
     """A class to read PowerPoint files."""
-    
+
     @classmethod
     def can_read(cls, fpath: Path) -> bool:
         _type: str | None = FileTypeCodec.get_type(fpath)
         if _type is None:
             return False
-        return _type == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        return (
+            _type
+            == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        )
 
     @classmethod
     def read(cls, fpath: Path) -> Generator[str, None, None]:
@@ -164,10 +166,14 @@ class PptxFileReader(FileReader):
         # one for each text run in presentation
         for slide in _presentation.slides:
             for shape in slide.shapes:
-                if isinstance(shape, pptx.shapes.autoshape.Shape) and shape.has_text_frame:
+                if (
+                    isinstance(shape, pptx.shapes.autoshape.Shape)
+                    and shape.has_text_frame
+                ):
                     for paragraph in shape.text_frame.paragraphs:
                         for run in paragraph.runs:
                             yield run.text
+
 
 if __name__ == "__main__":
     import argparse
