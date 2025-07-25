@@ -150,13 +150,11 @@ class PptxFileReader(FileReader):
 
     @classmethod
     def can_read(cls, fpath: Path) -> bool:
-        _type: str | None = FileTypeCodec.get_type(fpath)
-        if _type is None:
+        try:
+            Presentation(str(fpath))
+            return True
+        except Exception:
             return False
-        return (
-            _type
-            == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-        )
 
     @classmethod
     def read(cls, fpath: Path) -> Generator[str, None, None]:
@@ -179,29 +177,35 @@ if __name__ == "__main__":
     import argparse
 
     _arg_parser = argparse.ArgumentParser(
-        description="Get file type and codec from a file."
+        description="Read files and print contents to stdout."
     )
-    _arg_parser.add_argument(
-        "root", type=Path, help="Root dir to search files to test."
-    )
+    _arg_parser.add_argument("target", type=Path, help="File or directory to read.")
     args = _arg_parser.parse_args()
     try:
-        if not args.root.exists():
-            logger.error("{} does not exist.", args.root)
+        if not args.target.exists():
+            logger.error("{} does not exist.", args.target)
             exit(1)
-        for _dir_str, _, _fnames in os.walk(args.root):
-            _dir: Path = Path(_dir_str)
-            for _fname in _fnames:
-                _fpath: Path = _dir / _fname
-                _reader: Type[FileReader] | None = FileReader.get_reader(_fpath)
-                if _reader is None:
-                    continue
-                else:
-                    logger.debug("Found reader for {}: {}", _fpath, _reader.__name__)
-        logger.info("Type codec stat: {}", FileTypeCodec.type_codec_stat)
-        logger.info("Type stat: {}", FileTypeCodec.type_stat)
-        logger.info("Codec stat: {}", FileTypeCodec.codec_stat)
+        if args.target.is_file():
+            _reader: Type[FileReader] | None = FileReader.get_reader(args.target)
+            if _reader is None:
+                logger.error("No reader found for {}", args.target)
+            else:
+                logger.debug("Found reader for {}: {}", args.target, _reader.__name__)
+                for _line in _reader.read(args.target):
+                    print(_line, end="")
+        elif args.target.is_dir():
+            for _dir_str, _, _fnames in os.walk(args.target):
+                _dir: Path = Path(_dir_str)
+                for _fname in _fnames:
+                    _fpath: Path = _dir / _fname
+                    _reader: Type[FileReader] | None = FileReader.get_reader(_fpath)
+                    if _reader is None:
+                        continue
+                    else:
+                        logger.debug(
+                            "Found reader for {}: {}", _fpath, _reader.__name__
+                        )
+                        for _line in _reader.read(_fpath):
+                            print(_line, end="")
     except KeyboardInterrupt:
-        logger.info("Type codec stat: {}", FileTypeCodec.type_codec_stat)
-        logger.info("Type stat: {}", FileTypeCodec.type_stat)
-        logger.info("Codec stat: {}", FileTypeCodec.codec_stat)
+        pass
