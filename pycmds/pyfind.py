@@ -55,7 +55,7 @@ def _fstr_eval(_s: str, raw_string=False, eval=builtins.eval) -> str:
 
 
 class PyFinder(object):
-    EXEC_CMD_SEPERATOR: str = ";"
+    EXEC_CMD_SEPERATORS: Set[str] = set([";", "\\;"])
     EXEC_CMD_PLACEHOLDER: str = "{}"
 
     def __init__(
@@ -67,11 +67,17 @@ class PyFinder(object):
         mindepth: int,
     ):
         self.ftypes: Set[FileTypeE] | None = ftypes
-        self.name_patterns: Set[re.Pattern[str]] | None = (
-            {re.compile(_s) for _s in name_patterns}
-            if name_patterns is not None
-            else None
-        )
+        if name_patterns is None:
+            self.name_patterns: Set[re.Pattern[str]] | None = None
+        else:
+            self.name_patterns = set()
+            for _s in name_patterns:
+                try:
+                    self.name_patterns.add(re.compile(_s))
+                except re.error as e:
+                    logger.error(f"Invalid regex pattern for {_s}: {e}")
+                    raise ValueError(f"Invalid regex pattern: {e}")
+
         self.cmds: List[str] | None = cmds
         self.maxdepth: int = maxdepth
         self.mindepth: int = mindepth
@@ -123,7 +129,7 @@ class PyFinder(object):
         for _s in self.cmds:
             if _s == self.EXEC_CMD_PLACEHOLDER:
                 _cmd.append(str(p))
-            elif _s == self.EXEC_CMD_SEPERATOR:
+            elif _s in self.EXEC_CMD_SEPERATORS:
                 _cmds.append(_cmd)
                 _cmd = list()
             else:
@@ -180,7 +186,6 @@ if __name__ == "__main__":
             raise ValueError(_msg)
         _exec = _arg_v[_idx + 1 :]
         _arg_v = _arg_v[:_idx]
-
     _arg_parser.add_argument(
         "-exec",
         nargs="+",
